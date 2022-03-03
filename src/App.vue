@@ -21,15 +21,16 @@ import Message from '@/components/Message'
 import Plot from '@/components/Plot'
 import Source from '@/components/Source'
 
+function pad0 (num, length) {
+  num = num.toString()
+  return '0'.repeat(length - num.length) + num
+}
 /**
  * @param date {Date}
  * @return {String}
  */
 function dateFormat (date) {
-  function format (num, length) {
-    return (Array(length).join('0') + num).slice(-length)
-  }
-  return `${format(date.getHours(), 2)}:${format(date.getMinutes(), 2)}:${format(date.getSeconds(), 2)}.${format(date.getMilliseconds(), 3)}`
+  return `${pad0(date.getHours(), 2)}:${pad0(date.getMinutes(), 2)}:${pad0(date.getSeconds(), 2)}.${pad0(date.getMilliseconds(), 3)}`
 }
 
 export default {
@@ -46,7 +47,8 @@ export default {
       this.text += '>>' + dateFormat(new Date()) + ':' + message.text + '\n'
     },
     parseMessage (message) {
-      this.text += '<<' + dateFormat(new Date()) + ':' + message + '\n'
+      const dateStr = dateFormat(new Date())
+      this.text += '<<' + dateStr + ':' + message + '\n'
       const regex = /(?:([a-z_-]*)[^a-z0-9_-]+)?(-?\d+(?:\.\d*)?)/ig
       const result = []
       let m
@@ -55,7 +57,7 @@ export default {
         result.push({ tag: m[1] || `channel ${idx}`, data: parseFloat(m[2]) })
         idx += 1
       }
-      this.plotOnData(result)
+      this.plotOnData({ result, dateStr })
     }
   },
   mounted () {

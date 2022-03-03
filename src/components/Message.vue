@@ -17,7 +17,7 @@
           <i class="fas fa-check"></i>
         </button>
         <button class="btn btn-outline-dark" type="button" @click="$emit('clear')">
-          <i class="fas fa-broom"></i>
+          <i class="fa-solid fa-trash"></i>
         </button>
       </div>
     </form>
