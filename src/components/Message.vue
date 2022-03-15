@@ -16,29 +16,28 @@
         <button class="btn btn-outline-dark" type="submit">
           <i class="fas fa-check"></i>
         </button>
-        <button class="btn btn-outline-dark" type="button" @click="$emit('clear')">
+        <button class="btn btn-outline-dark" type="button" @click="text=''">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
     </form>
-    <div class="flex-grow-1 border rounded overflow-scroll" ref="text">
-      <pre>{{ text }}</pre>
-    </div>
+    <pre ref="text">{{ text }}</pre>
   </div>
 </template>
 
 <script>
+import { ipcRenderer } from 'electron'
 
 export default {
   name: 'Message',
   props: {
-    sources: Array,
-    text: String
+    sources: Array
   },
   data () {
     return {
       input: '',
-      messageTo: '-1'
+      messageTo: '-1',
+      text: ''
     }
   },
   methods: {
@@ -47,12 +46,18 @@ export default {
       if (this.input === '') {
         return
       }
-      this.$emit('send', { to: this.messageTo, text: this.input })
+      ipcRenderer.invoke('sendSource', this.messageTo, this.input)
       this.input = ''
     }
   },
+  mounted () {
+    ipcRenderer.on('data', (event, { text }) => {
+      this.text += text
+    })
+  },
   updated () {
-    this.$refs.text.scrollTo({ left: 0, top: this.$refs.text.scrollHeight })
+    // FIXME
+    // this.$refs.text.scrollToBottom()
   }
 }
 </script>

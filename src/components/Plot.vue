@@ -11,6 +11,7 @@
 
 <script>
 import * as echarts from 'echarts'
+import { ipcRenderer } from 'electron'
 
 let chart
 let xAxisData = []
@@ -19,9 +20,6 @@ const series = []
 const labelIndex = {}
 export default {
   name: 'Plot',
-  created () {
-    this.$emit('dataFunction', this.onData)
-  },
   methods: {
     clear () {
       xAxisData = []
@@ -34,8 +32,18 @@ export default {
         },
         series
       })
-    },
-    onData ({ result, dateStr }) {
+    }
+  },
+  async mounted () {
+    chart = echarts.init(this.$refs.chart)
+    chart.setOption({
+      xAxis: {
+        data: []
+      },
+      yAxis: {},
+      series: []
+    })
+    ipcRenderer.on('data', (event, { result, dateStr }) => {
       // processing
       xAxisData.push(dateStr)
       if (xAxisData.length > maxLength) {
@@ -67,16 +75,6 @@ export default {
         },
         series
       })
-    }
-  },
-  async mounted () {
-    chart = echarts.init(this.$refs.chart)
-    chart.setOption({
-      xAxis: {
-        data: []
-      },
-      yAxis: {},
-      series: []
     })
   }
 }

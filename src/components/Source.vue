@@ -16,9 +16,9 @@
     </form>
     <div class="border rounded flex-grow-1 overflow-scroll p-1">
       <div class="input-group mb-1" v-for="item in sourcesArray">
-        <span class="input-group-text">{{ item[0] }}</span>
-        <input class="form-control" :value="item[1].cmd" disabled>
-        <button class="btn btn-outline-danger" @click="del(item[0])">
+        <span class="input-group-text">{{ item.pid }}</span>
+        <input class="form-control" :value="item.cmd" disabled>
+        <button class="btn btn-outline-danger" @click="del(item.pid)">
           <i class="fas fa-trash"></i>
         </button>
       </div>
@@ -28,11 +28,8 @@
 </template>
 
 <script>
-import { spawn } from 'child_process'
-import shellParser from 'shell-parser'
-import readline from 'readline'
+import { ipcRenderer } from 'electron'
 
-const sources = new Map()
 export default {
   name: 'Source',
   data () {
@@ -41,39 +38,19 @@ export default {
       sourcesArray: []
     }
   },
+  async mounted () {
+    ipcRenderer.on('updateSource', (event, sourcesArray) => {
+      this.sourcesArray = sourcesArray
+    })
+    this.sourcesArray = await ipcRenderer.invoke('getSource')
+  },
   methods: {
-    update () {
-      this.sourcesArray = Array.from(sources)
-      this.$emit('update', this.sourcesArray)
-    },
     add (e) {
       e.preventDefault()
-      const arg = shellParser(this.cmd)
-      let source
-      if (process.platform === 'win32') {
-        source = spawn(arg[0], arg.slice(1))
-      } else {
-        // unbuffered
-        source = spawn('stdbuf', ['-i0', '-oL', ...arg])
-      }
-      if (!source.pid) {
-        return
-      }
-      const rl = readline.createInterface(source.stdout)
-      rl.on('line', line => {
-        console.debug(line)
-        this.$emit('message', line)
-      })
-      source.on('close', () => {
-        sources.delete(source.pid)
-        rl.close()
-        this.update()
-      })
-      sources.set(source.pid, { source, cmd: this.cmd })
-      this.update()
+      ipcRenderer.invoke('addSource', this.cmd)
     },
     del (pid) {
-      sources.get(pid).source.kill()
+      ipcRenderer.invoke('delSource', pid)
     },
     select () {
       this.$refs.file.click()

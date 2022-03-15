@@ -1,8 +1,11 @@
 'use strict'
 
-import { app, protocol, BrowserWindow } from 'electron'
+import { app, protocol, BrowserWindow, ipcMain } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
+import { spawn } from 'child_process'
+import shellParser from 'shell-parser'
+import readline from 'readline'
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 // Scheme must be registered before the app is ready
@@ -10,9 +13,84 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true } }
 ])
 
+let mainWindow
+
+function pad0 (num, length) {
+  num = num.toString()
+  return '0'.repeat(length - num.length) + num
+}
+/**
+ * @param date {Date}
+ * @return {String}
+ */
+function dateFormat (date) {
+  return `${pad0(date.getHours(), 2)}:${pad0(date.getMinutes(), 2)}:${pad0(date.getSeconds(), 2)}.${pad0(date.getMilliseconds(), 3)}`
+}
+
+// source pool
+const sources = new Map()
+
+/**
+ * @param {Map} sources
+ * @return {Array}
+ */
+function serializeSources (sources) {
+  const result = []
+  sources.forEach((source, pid) => {
+    result.push({ pid, cmd: source.cmd })
+  })
+  return result
+}
+ipcMain.handle('addSource', (event, cmd) => {
+  const arg = shellParser(cmd)
+  let source
+  if (process.platform === 'win32') {
+    source = spawn(arg[0], arg.slice(1))
+  } else {
+    // unbuffered
+    source = spawn('stdbuf', ['-i0', '-oL', ...arg])
+  }
+  if (!source.pid) {
+    return false
+  }
+  const rl = readline.createInterface(source.stdout)
+  rl.on('line', line => {
+    // TODO: parse and tell render process
+    const dateStr = dateFormat(new Date())
+    const regex = /(?:([a-z_-]*)[^a-z0-9_-]+)?(-?\d+(?:\.\d*)?)/ig
+    const result = []
+    let m
+    let idx = 1
+    while ((m = regex.exec(line)) !== null) {
+      result.push({ tag: m[1] || `channel ${idx}`, data: parseFloat(m[2]) })
+      idx += 1
+    }
+    mainWindow.webContents.send('data', {
+      result,
+      dateStr,
+      text: '<<' + dateStr + ':' + line + '\n'
+    })
+  })
+  source.on('close', () => {
+    sources.delete(source.pid)
+    rl.close()
+    // TODO: tell render process
+    mainWindow.webContents.send('updateSource', serializeSources(sources))
+  })
+  sources.set(source.pid, { source, cmd })
+  mainWindow.webContents.send('updateSource', serializeSources(sources))
+})
+ipcMain.handle('delSource', (event, pid) => {
+  sources.get(pid).source.kill()
+})
+ipcMain.handle('getSource', event => serializeSources(sources))
+ipcMain.handle('sendSource', (event, to, message) => {
+  // TODO
+})
+
 async function createWindow () {
   // Create the browser window.
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -26,12 +104,12 @@ async function createWindow () {
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
-    await win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
-    if (!process.env.IS_TEST) win.webContents.openDevTools()
+    await mainWindow.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
+    if (!process.env.IS_TEST) mainWindow.webContents.openDevTools()
   } else {
     createProtocol('app')
     // Load the index.html when not in development
-    win.loadURL('app://./index.html')
+    await mainWindow.loadURL('app://./index.html')
   }
 }
 
