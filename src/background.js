@@ -97,7 +97,6 @@ ipcMain.handle('addSource', (event, cmd) => {
   source.on('close', () => {
     sources.delete(source.pid)
     rl.close()
-    // TODO: tell render process
     mainWindow.webContents.send('updateSource', serializeSources(sources))
   })
   sources.set(source.pid, { source, cmd })
@@ -136,6 +135,7 @@ async function createWindow () {
             }
             const filePath = result.filePaths[0]
             console.debug(filePath)
+            // TODO
           }
         },
         {
@@ -162,6 +162,7 @@ async function createWindow () {
                   dbBleedingData.forEach(({ time, tag, value }) => {
                     insertStatement.run(time, tag, value)
                   })
+                  dbBleedingData = []
                   dbBleeding = false
                 })
               })
@@ -172,6 +173,7 @@ async function createWindow () {
         {
           label: 'Append saving (TODO)',
           enabled: false
+          // TODO
         }
       ]
     },

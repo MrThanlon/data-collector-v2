@@ -7,27 +7,22 @@ on:
     branches: [ master, dev ]
 
 jobs:
-  build_for_windows:
+  Build for windows:
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v3
-
     - name: Use Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 14.x
         cache: 'npm'
-
+    - name: Install deps
+      run: npm ci
     - name: Build
-      run: |
-        npm ci
-        npm run electron:build
-        tree dist_electron
-
+      run: npm run electron:build
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: dist
+        name: data-collector-win
         path: dist_electron/win-unpacked/
 
