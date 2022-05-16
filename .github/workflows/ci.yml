@@ -23,10 +23,11 @@ jobs:
       run: |
         npm ci
         npm run electron:build
+        tree dist_electron
 
     - name: Upload
       uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: dist_electron/*.exe
+      with:
+        name: dist
+        path: dist_electron/*.exe
 
